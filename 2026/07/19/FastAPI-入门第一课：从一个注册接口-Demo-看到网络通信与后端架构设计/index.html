@@ -1,0 +1,294 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计 | ANEMP BLOG</title><meta name="author" content="anemperorduck"><meta name="copyright" content="anemperorduck"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计 前言今天是我系统学习 FastAPI 的第一天。为了建立直观的理解，我没有去死记硬背枯燥的 API 文档，而是以最常见的“用户注册接口 (Demo)”为主线，从前端发起网络请求，一路追踪到后端的数据校验、日志记录与响应返回。本文将我的学习笔记进行了系统性重构，希望能帮助同样在入门 FastAPI 的你，建立起从“网络通信">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计">
+<meta property="og:url" content="https://anemperorduck.github.io/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/index.html">
+<meta property="og:site_name" content="ANEMP BLOG">
+<meta property="og:description" content="FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计 前言今天是我系统学习 FastAPI 的第一天。为了建立直观的理解，我没有去死记硬背枯燥的 API 文档，而是以最常见的“用户注册接口 (Demo)”为主线，从前端发起网络请求，一路追踪到后端的数据校验、日志记录与响应返回。本文将我的学习笔记进行了系统性重构，希望能帮助同样在入门 FastAPI 的你，建立起从“网络通信">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://anemperorduck.github.io/img/peo.jpg">
+<meta property="article:published_time" content="2026-07-18T17:17:58.000Z">
+<meta property="article:modified_time" content="2026-07-18T17:23:45.708Z">
+<meta property="article:author" content="anemperorduck">
+<meta property="article:tag" content="FastAPI">
+<meta property="article:tag" content="Pydantic">
+<meta property="article:tag" content="Python web">
+<meta property="article:tag" content="curl">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://anemperorduck.github.io/img/peo.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计",
+  "url": "https://anemperorduck.github.io/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/",
+  "image": "https://anemperorduck.github.io/img/peo.jpg",
+  "datePublished": "2026-07-18T17:17:58.000Z",
+  "dateModified": "2026-07-18T17:23:45.708Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "anemperorduck",
+      "url": "https://anemperorduck.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://anemperorduck.github.io/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":250,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.1"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f8f9fa;"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">13</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">17</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> List</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></li><li><a class="site-page child" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></li></ul></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(/img/peo.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ANEMP BLOG</span></a><a class="nav-page-title" href="/"><span class="site-name">FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> List</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></li><li><a class="site-page child" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></li></ul></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-07-18T17:17:58.000Z" title="发表于 2026-07-19 01:17:58">2026-07-19</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-07-18T17:23:45.708Z" title="更新于 2026-07-19 01:23:45">2026-07-19</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%B8%96%E7%95%8C%E6%A8%A1%E5%BC%8F/">世界模式</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="FastAPI-第一课：从一个注册接口-Demo-看到网络通信与后端架构设计"><a href="#FastAPI-第一课：从一个注册接口-Demo-看到网络通信与后端架构设计" class="headerlink" title="FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计"></a>FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计</h1><blockquote>
+<p><strong>前言</strong><br>今天是我系统学习 FastAPI 的第一天。为了建立直观的理解，我没有去死记硬背枯燥的 API 文档，而是以最常见的“用户注册接口 (Demo)”为主线，从前端发起网络请求，一路追踪到后端的数据校验、日志记录与响应返回。<br>本文将我的学习笔记进行了系统性重构，希望能帮助同样在入门 FastAPI 的你，建立起从“网络通信”到“后端架构设计”的全局观。</p>
+</blockquote>
+<hr>
+<h2 id="一、-网络通信篇：你的请求是如何到达-FastAPI-的？"><a href="#一、-网络通信篇：你的请求是如何到达-FastAPI-的？" class="headerlink" title="一、 网络通信篇：你的请求是如何到达 FastAPI 的？"></a>一、 网络通信篇：你的请求是如何到达 FastAPI 的？</h2><p>在编写后端代码之前，我们必须先理解客户端与服务器是如何“对话”的。网络通信的本质，非常类似于寄送快递。</p>
+<h3 id="1-万物皆可“寄快递”"><a href="#1-万物皆可“寄快递”" class="headerlink" title="1. 万物皆可“寄快递”"></a>1. 万物皆可“寄快递”</h3><p>我们以一个向本地 FastAPI 服务发送注册请求的例子，来拆解抽象的网络概念：</p>
+<table>
+<thead>
+<tr>
+<th align="left">网络概念</th>
+<th align="left">快递类比</th>
+<th align="left">具体到我们的 Demo</th>
+<th align="left">深度解析</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>IP 地址</strong></td>
+<td align="left">收件地址（某栋大楼）</td>
+<td align="left"><code>127.0.0.1</code></td>
+<td align="left">特殊的本地回环地址，代表“我自己的这台电脑”。发送和接收都在本机。</td>
+</tr>
+<tr>
+<td align="left"><strong>端口 (Port)</strong></td>
+<td align="left">收件人房间号</td>
+<td align="left"><code>8080</code></td>
+<td align="left">一台电脑运行着很多服务。<code>8080</code> 就是 FastAPI (uvicorn) 分配的专属房间号。</td>
+</tr>
+<tr>
+<td align="left"><strong>路径 (Path)</strong></td>
+<td align="left">具体收件部门</td>
+<td align="left"><code>/users/register</code></td>
+<td align="left">告诉大楼里的 FastAPI，包裹具体要交给哪个业务路由处理。</td>
+</tr>
+<tr>
+<td align="left"><strong>协议 (HTTP)</strong></td>
+<td align="left">寄送快递的规则</td>
+<td align="left"><code>http://</code></td>
+<td align="left">规定了客户端和服务器之间传输数据的标准格式和对话规则。</td>
+</tr>
+<tr>
+<td align="left"><strong>方法 (Method)</strong></td>
+<td align="left">寄件类型</td>
+<td align="left"><code>POST</code></td>
+<td align="left"><code>GET</code> 是“去拿快递（获取数据）”，<code>POST</code> 是“去寄快递（向服务器提交新数据）”。</td>
+</tr>
+<tr>
+<td align="left"><strong>请求头 (Headers)</strong></td>
+<td align="left">快递单上的备注</td>
+<td align="left"><code>Content-Type: application/json</code></td>
+<td align="left">告诉接收方“包裹里装的是什么格式”。这里声明是 JSON 格式。</td>
+</tr>
+<tr>
+<td align="left"><strong>请求体 (Body)</strong></td>
+<td align="left">包裹里的实际物品</td>
+<td align="left"><code>{&quot;username&quot;: &quot;alex&quot;...}</code></td>
+<td align="left">提交给服务器的实际数据载荷（Payload）。</td>
+</tr>
+</tbody></table>
+<h3 id="2-剖析-curl-命令与-Apifox-可视化测试"><a href="#2-剖析-curl-命令与-Apifox-可视化测试" class="headerlink" title="2. 剖析 curl 命令与 Apifox 可视化测试"></a>2. 剖析 <code>curl</code> 命令与 Apifox 可视化测试</h3><p>在终端中，我们通常使用 <code>curl</code> 来发送请求：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST <span class="string">&quot;http://127.0.0.1:8080/users/register&quot;</span> \</span><br><span class="line">     -H <span class="string">&quot;Content-Type: application/json&quot;</span> \</span><br><span class="line">     -d <span class="string">&#x27;&#123;&quot;username&quot;: &quot;alex_pro&quot;, &quot;email&quot;: &quot;alex@domain.com&quot;, &quot;password&quot;: &quot;supersecurepassword&quot;&#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>但在实际开发中，我们更推荐使用 <strong>Apifox</strong> 或 Postman 这样的可视化接口测试工具。你只需要：</p>
+<ol>
+<li>新建快捷请求，将方法改为 <code>POST</code>，填入 URL。</li>
+<li>在 <code>Body</code> -&gt; <code>json</code> 中粘贴 JSON 数据（工具会自动帮你加上 <code>Content-Type</code> 请求头）。</li>
+<li>点击“发送”，即可在下方看到状态码（如 <code>201 Created</code>）和响应体。</li>
+</ol>
+<h3 id="3-新手常见“翻车”排查指南"><a href="#3-新手常见“翻车”排查指南" class="headerlink" title="3. 新手常见“翻车”排查指南"></a>3. 新手常见“翻车”排查指南</h3><p>如果点击发送后没有得到预期结果，请对照以下“病历本”：</p>
+<ul>
+<li><strong>Connection Refused (无法连接)</strong>：你的 FastAPI 服务没启动，或者端口不对。请确保终端正在运行 <code>uvicorn main:app --port 8080</code>。</li>
+<li><strong>404 Not Found</strong>：路径拼写错误。检查是 <code>/users/register</code> 还是 <code>/user/register</code>，必须与代码中的 <code>@app.post</code> 完全一致。</li>
+<li><strong>422 Unprocessable Entity</strong>：JSON 格式错误（如用了单引号、多了逗号），或者缺少了必填字段。</li>
+</ul>
+<hr>
+<h2 id="二、-数据校验篇：Pydantic，后端的“智能安检员”"><a href="#二、-数据校验篇：Pydantic，后端的“智能安检员”" class="headerlink" title="二、 数据校验篇：Pydantic，后端的“智能安检员”"></a>二、 数据校验篇：Pydantic，后端的“智能安检员”</h2><p>当请求成功抵达 FastAPI 后，下一步就是解析和校验数据。这里就不得不提 FastAPI 的灵魂伴侣 —— <strong>Pydantic</strong>。</p>
+<h3 id="1-为什么坚决不用普通-Python-类？"><a href="#1-为什么坚决不用普通-Python-类？" class="headerlink" title="1. 为什么坚决不用普通 Python 类？"></a>1. 为什么坚决不用普通 Python 类？</h3><p>假设我们需要接收注册数据，如果不用 Pydantic，你的代码（方案 A）会是这样的：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 方案 A：原生 Python 类（不推荐）</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">UserRegisterInput</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self, username: <span class="built_in">str</span>, email: <span class="built_in">str</span>, password: <span class="built_in">str</span></span>):</span><br><span class="line">        <span class="variable language_">self</span>.username = username</span><br><span class="line">        <span class="variable language_">self</span>.email = email</span><br><span class="line">        <span class="variable language_">self</span>.password = password</span><br><span class="line"></span><br><span class="line"><span class="meta">@app.post(<span class="params"><span class="string">&quot;/register&quot;</span></span>)</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">register</span>(<span class="params">data: <span class="built_in">dict</span></span>):</span><br><span class="line">    <span class="comment"># 手动写大量 if-else 校验</span></span><br><span class="line">    username = data.get(<span class="string">&quot;username&quot;</span>)</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> username <span class="keyword">or</span> <span class="built_in">len</span>(username) &lt; <span class="number">3</span>:</span><br><span class="line">        <span class="keyword">raise</span> HTTPException(status_code=<span class="number">400</span>, detail=<span class="string">&quot;用户名长度必须大于3&quot;</span>)</span><br><span class="line">    <span class="comment"># ... 后续还有邮箱、密码的繁琐校验</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>弊端</strong>：代码冗长、校验规则难维护，且 <code>/docs</code> 接口文档完全不知道你需要什么参数，前端无法联调。</p>
+<h3 id="2-BaseModel-的四大超能力"><a href="#2-BaseModel-的四大超能力" class="headerlink" title="2. BaseModel 的四大超能力"></a>2. BaseModel 的四大超能力</h3><p>当我们继承 Pydantic 的 <code>BaseModel</code> 后（方案 B），普通类瞬间获得了“超能力”：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 方案 B：使用 BaseModel（推荐）</span></span><br><span class="line"><span class="keyword">from</span> pydantic <span class="keyword">import</span> BaseModel, Field, EmailStr</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">UserRegisterInput</span>(<span class="title class_ inherited__">BaseModel</span>):</span><br><span class="line">    username: <span class="built_in">str</span> = Field(..., min_length=<span class="number">3</span>)</span><br><span class="line">    email: EmailStr</span><br><span class="line">    password: <span class="built_in">str</span> = Field(..., min_length=<span class="number">8</span>)</span><br><span class="line"></span><br><span class="line"><span class="meta">@app.post(<span class="params"><span class="string">&quot;/register&quot;</span></span>)</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">register</span>(<span class="params">user_data: UserRegisterInput</span>):</span><br><span class="line">    <span class="comment"># 进入这里的 user_data 已经是 100% 校验通过的安全数据</span></span><br><span class="line">    <span class="keyword">return</span> &#123;<span class="string">&quot;status&quot;</span>: <span class="string">&quot;success&quot;</span>, <span class="string">&quot;username&quot;</span>: user_data.username&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>它的核心价值在于：</strong></p>
+<ol>
+<li><strong>自动数据校验</strong>：自动比对类型提示（如 <code>EmailStr</code> 正则校验邮箱，<code>min_length</code> 拦截短密码）。</li>
+<li><strong>数据类型强制转换</strong>：前端传字符串 <code>&quot;99&quot;</code>，定义为 <code>int</code> 时会自动转为整型 <code>99</code>。</li>
+<li><strong>快捷序列化</strong>：提供 <code>model_dump()</code> 一键转字典，<code>model_dump_json()</code> 一键转 JSON。</li>
+<li><strong>自动生成 OpenAPI 文档</strong>：FastAPI 启动时扫描 <code>BaseModel</code>，自动生成 <code>/docs</code> 页面的可视化输入框和参数限制。</li>
+</ol>
+<h3 id="3-Field-函数与底层拦截机制"><a href="#3-Field-函数与底层拦截机制" class="headerlink" title="3. Field 函数与底层拦截机制"></a>3. Field 函数与底层拦截机制</h3><p><code>Field</code> 用于在类型提示上附加复杂的业务规则。很多初学者好奇：“我没写 <code>if</code> 判断，框架怎么自动拦截错误的？”</p>
+<ul>
+<li><strong>元编程解析</strong>：Python 加载类时，Pydantic 在后台动态构建校验器。</li>
+<li><strong>自动拦截</strong>：请求到达时，FastAPI 尝试用 JSON 实例化 <code>BaseModel</code>。如果违规，抛出 <code>ValidationError</code>。</li>
+<li><strong>自动响应</strong>：FastAPI 捕获异常，直接向前端返回 <code>422 Unprocessable Entity</code> 及详细错误原因。</li>
+</ul>
+<blockquote>
+<p><strong>注意拼写错误</strong>：如果你把 <code>min_length</code> 错拼成 <code>minn_length</code>，Pydantic v2 会在程序启动时直接崩溃并抛出 <code>PydanticUserError</code>。这是为了避免“静默失效”导致安全漏洞。</p>
+</blockquote>
+<h3 id="4-架构思考：校验的界限"><a href="#4-架构思考：校验的界限" class="headerlink" title="4. 架构思考：校验的界限"></a>4. 架构思考：校验的界限</h3><p>在实际开发中，要清晰划分框架与开发者的职责：</p>
+<ul>
+<li><strong>输入校验 (Pydantic 自动)</strong>：数据格式、长度、类型、是否必填。</li>
+<li><strong>业务校验 (开发者手动)</strong>：邮箱是否已被注册、密码哈希比对、账号是否被封禁。</li>
+</ul>
+<hr>
+<h2 id="三、-工程规范篇：日志系统与-RESTful-状态码"><a href="#三、-工程规范篇：日志系统与-RESTful-状态码" class="headerlink" title="三、 工程规范篇：日志系统与 RESTful 状态码"></a>三、 工程规范篇：日志系统与 RESTful 状态码</h2><p>一个合格的工业级后端服务，除了业务逻辑，还必须具备良好的可观测性和规范性。</p>
+<h3 id="1-告别-print-：日志配置的架构考量"><a href="#1-告别-print-：日志配置的架构考量" class="headerlink" title="1. 告别 print()：日志配置的架构考量"></a>1. 告别 <code>print()</code>：日志配置的架构考量</h3><p>在 FastAPI 中，我们使用 Python 标准的 <code>logging</code> 模块：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> logging</span><br><span class="line"></span><br><span class="line">logging.basicConfig(level=logging.INFO, <span class="built_in">format</span>=<span class="string">&quot;%(asctime)s - %(levelname)s - %(message)s&quot;</span>)</span><br><span class="line">logger = logging.getLogger(__name__)</span><br></pre></td></tr></table></figure>
+
+<p><strong>为什么要这样配置？</strong></p>
+<ul>
+<li><strong>可追溯性</strong>：结构化的 <code>asctime</code> 和 <code>levelname</code> 方便与数据库日志进行时间对齐，也方便 Prometheus 等工具通过 <code>ERROR</code> 关键字触发告警。</li>
+<li><strong>模块隔离</strong>：<code>getLogger(__name__)</code> 能打印出类似 <code>core.auth.services</code> 的模块名，一眼定位日志源头，且支持对不同模块设置不同的日志级别。</li>
+<li><strong>避免性能损耗</strong>：生产环境设为 <code>INFO</code>，自动过滤掉开发期残留的高频 <code>DEBUG</code> 日志，避免拖慢 I&#x2F;O 吞吐量。</li>
+<li><strong>云原生 Ready</strong>：默认输出到标准输出 (Stdout)，完美契合 Docker&#x2F;K8s 架构下的 Fluentd&#x2F;ELK 日志收集最佳实践。</li>
+</ul>
+<h3 id="2-拒绝“魔术数字”：status-HTTP-201-CREATED"><a href="#2-拒绝“魔术数字”：status-HTTP-201-CREATED" class="headerlink" title="2. 拒绝“魔术数字”：status.HTTP_201_CREATED"></a>2. 拒绝“魔术数字”：<code>status.HTTP_201_CREATED</code></h3><p>在路由装饰器中，我们通常会这样写：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> fastapi <span class="keyword">import</span> status</span><br><span class="line"></span><br><span class="line"><span class="meta">@app.post(<span class="params"><span class="string">&quot;/users/register&quot;</span>, status_code=status.HTTP_201_CREATED</span>)</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><strong>RESTful 规范</strong>：<code>200 OK</code> 通常用于查询或通用更新；而 <code>201 Created</code> 专用于“成功创建了新资源”（如新用户、新订单）。这能明确告知客户端业务语义。</li>
+<li><strong>拒绝魔术数字</strong>：直接写 <code>status_code=201</code> 被称为“魔术数字”，缺乏自解释性。使用常量 <code>status.HTTP_201_CREATED</code> 不仅能利用 IDE 的自动补全防止手误，还能让代码读起来像自然语言一样优雅。</li>
+<li><strong>文档同步</strong>：FastAPI 会自动将 <code>/docs</code> 页面的成功响应状态码更新为 <code>201</code>，前后端联调零沟通成本。</li>
+</ul>
+<hr>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>第一天的 FastAPI 学习，让我深刻体会到了“现代 Python Web 框架”的魅力。<br>它不仅仅是提供了一个路由转发的工具，更是通过 <strong>Pydantic 的数据校验</strong>、<strong>自动化的 OpenAPI 文档</strong>、以及<strong>对 RESTful 和云原生日志的天然支持</strong>，强迫并引导开发者写出安全、规范、工业级的后端代码。</p>
+<p>从“寄快递”的网络请求，到“智能安检”的 BaseModel，再到严谨的日志与状态码，这不仅仅是一个 Demo 的跑通，更是后端架构思维的一次重塑。</p>
+<blockquote>
+<p><strong>Next Step</strong>：接下来，我将深入探索 FastAPI 的<strong>依赖注入系统 (Depends)</strong> 与 <strong>SQLAlchemy 数据库异步 ORM</strong> 的结合，敬请期待下一篇文章。</p>
+</blockquote>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://anemperorduck.github.io">anemperorduck</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://anemperorduck.github.io/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/">https://anemperorduck.github.io/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://anemperorduck.github.io" target="_blank">ANEMP BLOG</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/FastAPI/">FastAPI</a><a class="post-meta__tags" href="/tags/Python-web/">Python web</a><a class="post-meta__tags" href="/tags/Pydantic/">Pydantic</a><a class="post-meta__tags" href="/tags/curl/">curl</a></div><div class="post-share"><div class="social-share" data-image="/img/peo.jpg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/04/01/%E5%A4%84%E7%90%86VS-Code%E4%B8%ADPylance%E6%97%A0%E6%B3%95%E8%A7%A3%E6%9E%90%E5%AF%BC%E5%85%A5%E7%9A%84%E9%94%99%E8%AF%AF%EF%BC%9A%E4%BB%A5nltk%E4%B8%BA%E4%BE%8B/" title="处理VS-Code中Pylance无法解析导入的错误：以NLTK为例"><img class="cover" src="/img/tree.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">处理VS-Code中Pylance无法解析导入的错误：以NLTK为例</div></div><div class="info-2"><div class="info-item-1">在使用VS Code进行Python开发时，常常会遇到这样的场景：终端中python -c &quot;import nltk&quot;运行正常，但编辑器中import nltk却始终被红色波浪线标记，并提示“无法解析导入 ‘nltk’”？这一问题在切换conda虚拟环境后尤为常见，并且不局限于 ‘nltk’，在使用‘tensflow’依赖库的时候也经常常见。尽管代码能够正常执行，但静态检查工具的报错不仅仅只是影响开发体验，还会可能导致代码补全失效，导致开发效率变低。 本文将从根本原因入手，系统性地梳理该问题的成因，并提供一套经过验证的解决方案。通过调整解释器选择、重载窗口、验证安装路径以及配置分析路径，您可以彻底消除这烦人的波浪线。 问题根源：Pylance与运行时环境的短暂不同步VS Code的Python开发体验依赖于两个核心组件：  Python扩展：负责选择解释器、运行代码、管理环境。 Pylance：作为语言服务器，提供静态分析、代码补全、类型检查等功能。  当使用conda虚拟环境时，Python扩展能够正确识别环境并调用其中的解释器运行代码。但Pylance在索...</div></div></div></a></nav></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">anemperorduck</div><div class="author-info-description">about computer technology; about philosophy; About literature</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">13</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">17</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/anemperorduck"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/anemperorduck" target="_blank" title="Github"><i class="fab fa-github" style="color: #24292e;"></i></a><a class="social-icon" href="mailto:anemperorduck@gmail.com" target="_blank" title="Email"><i class="fas fa-envelope" style="color: #4a7dbe;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#FastAPI-%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1"><span class="toc-text">FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E3%80%81-%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E7%AF%87%EF%BC%9A%E4%BD%A0%E7%9A%84%E8%AF%B7%E6%B1%82%E6%98%AF%E5%A6%82%E4%BD%95%E5%88%B0%E8%BE%BE-FastAPI-%E7%9A%84%EF%BC%9F"><span class="toc-text">一、 网络通信篇：你的请求是如何到达 FastAPI 的？</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%B8%87%E7%89%A9%E7%9A%86%E5%8F%AF%E2%80%9C%E5%AF%84%E5%BF%AB%E9%80%92%E2%80%9D"><span class="toc-text">1. 万物皆可“寄快递”</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%89%96%E6%9E%90-curl-%E5%91%BD%E4%BB%A4%E4%B8%8E-Apifox-%E5%8F%AF%E8%A7%86%E5%8C%96%E6%B5%8B%E8%AF%95"><span class="toc-text">2. 剖析 curl 命令与 Apifox 可视化测试</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E6%96%B0%E6%89%8B%E5%B8%B8%E8%A7%81%E2%80%9C%E7%BF%BB%E8%BD%A6%E2%80%9D%E6%8E%92%E6%9F%A5%E6%8C%87%E5%8D%97"><span class="toc-text">3. 新手常见“翻车”排查指南</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BA%8C%E3%80%81-%E6%95%B0%E6%8D%AE%E6%A0%A1%E9%AA%8C%E7%AF%87%EF%BC%9APydantic%EF%BC%8C%E5%90%8E%E7%AB%AF%E7%9A%84%E2%80%9C%E6%99%BA%E8%83%BD%E5%AE%89%E6%A3%80%E5%91%98%E2%80%9D"><span class="toc-text">二、 数据校验篇：Pydantic，后端的“智能安检员”</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E4%B8%BA%E4%BB%80%E4%B9%88%E5%9D%9A%E5%86%B3%E4%B8%8D%E7%94%A8%E6%99%AE%E9%80%9A-Python-%E7%B1%BB%EF%BC%9F"><span class="toc-text">1. 为什么坚决不用普通 Python 类？</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-BaseModel-%E7%9A%84%E5%9B%9B%E5%A4%A7%E8%B6%85%E8%83%BD%E5%8A%9B"><span class="toc-text">2. BaseModel 的四大超能力</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-Field-%E5%87%BD%E6%95%B0%E4%B8%8E%E5%BA%95%E5%B1%82%E6%8B%A6%E6%88%AA%E6%9C%BA%E5%88%B6"><span class="toc-text">3. Field 函数与底层拦截机制</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-%E6%9E%B6%E6%9E%84%E6%80%9D%E8%80%83%EF%BC%9A%E6%A0%A1%E9%AA%8C%E7%9A%84%E7%95%8C%E9%99%90"><span class="toc-text">4. 架构思考：校验的界限</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%89%E3%80%81-%E5%B7%A5%E7%A8%8B%E8%A7%84%E8%8C%83%E7%AF%87%EF%BC%9A%E6%97%A5%E5%BF%97%E7%B3%BB%E7%BB%9F%E4%B8%8E-RESTful-%E7%8A%B6%E6%80%81%E7%A0%81"><span class="toc-text">三、 工程规范篇：日志系统与 RESTful 状态码</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E5%91%8A%E5%88%AB-print-%EF%BC%9A%E6%97%A5%E5%BF%97%E9%85%8D%E7%BD%AE%E7%9A%84%E6%9E%B6%E6%9E%84%E8%80%83%E9%87%8F"><span class="toc-text">1. 告别 print()：日志配置的架构考量</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E6%8B%92%E7%BB%9D%E2%80%9C%E9%AD%94%E6%9C%AF%E6%95%B0%E5%AD%97%E2%80%9D%EF%BC%9Astatus-HTTP-201-CREATED"><span class="toc-text">2. 拒绝“魔术数字”：status.HTTP_201_CREATED</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%BB%93%E8%AF%AD"><span class="toc-text">结语</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" title="FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计"><img src="/img/peo.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计"/></a><div class="content"><a class="title" href="/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" title="FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计">FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计</a><time datetime="2026-07-18T17:17:58.000Z" title="发表于 2026-07-19 01:17:58">2026-07-19</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/04/01/%E5%A4%84%E7%90%86VS-Code%E4%B8%ADPylance%E6%97%A0%E6%B3%95%E8%A7%A3%E6%9E%90%E5%AF%BC%E5%85%A5%E7%9A%84%E9%94%99%E8%AF%AF%EF%BC%9A%E4%BB%A5nltk%E4%B8%BA%E4%BE%8B/" title="处理VS-Code中Pylance无法解析导入的错误：以NLTK为例"><img src="/img/tree.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="处理VS-Code中Pylance无法解析导入的错误：以NLTK为例"/></a><div class="content"><a class="title" href="/2026/04/01/%E5%A4%84%E7%90%86VS-Code%E4%B8%ADPylance%E6%97%A0%E6%B3%95%E8%A7%A3%E6%9E%90%E5%AF%BC%E5%85%A5%E7%9A%84%E9%94%99%E8%AF%AF%EF%BC%9A%E4%BB%A5nltk%E4%B8%BA%E4%BE%8B/" title="处理VS-Code中Pylance无法解析导入的错误：以NLTK为例">处理VS-Code中Pylance无法解析导入的错误：以NLTK为例</a><time datetime="2026-04-01T04:11:22.000Z" title="发表于 2026-04-01 12:11:22">2026-04-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/03/30/NLP%E7%9A%84%E5%9F%BA%E7%A1%80%EF%BC%9ANLTK%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E8%AF%A6%E8%A7%A3%E4%B8%8E%E6%96%87%E6%9C%AC%E9%A2%84%E5%A4%84%E7%90%86/" title="NLP的基础：NLTK核心功能详解与文本预处理"><img src="/img/kiss.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="NLP的基础：NLTK核心功能详解与文本预处理"/></a><div class="content"><a class="title" href="/2026/03/30/NLP%E7%9A%84%E5%9F%BA%E7%A1%80%EF%BC%9ANLTK%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E8%AF%A6%E8%A7%A3%E4%B8%8E%E6%96%87%E6%9C%AC%E9%A2%84%E5%A4%84%E7%90%86/" title="NLP的基础：NLTK核心功能详解与文本预处理">NLP的基础：NLTK核心功能详解与文本预处理</a><time datetime="2026-03-30T09:27:08.000Z" title="发表于 2026-03-30 17:27:08">2026-03-30</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/03/19/%E4%BB%8E%E9%9B%B6%E6%90%AD%E5%BB%BA%E5%9B%BD%E5%86%85API%E5%AE%9A%E5%90%91%E7%9A%84Claude-Code%E5%AE%9E%E8%B7%B5%E6%8C%87%E5%8D%97/" title="从零搭建国内API定向的Claude Code实践指南"><img src="/img/country.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="从零搭建国内API定向的Claude Code实践指南"/></a><div class="content"><a class="title" href="/2026/03/19/%E4%BB%8E%E9%9B%B6%E6%90%AD%E5%BB%BA%E5%9B%BD%E5%86%85API%E5%AE%9A%E5%90%91%E7%9A%84Claude-Code%E5%AE%9E%E8%B7%B5%E6%8C%87%E5%8D%97/" title="从零搭建国内API定向的Claude Code实践指南">从零搭建国内API定向的Claude Code实践指南</a><time datetime="2026-03-19T05:43:20.000Z" title="发表于 2026-03-19 13:43:20">2026-03-19</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/03/01/Git%E7%9A%84%E6%8D%A2%E8%A1%8C%E7%AC%A6%E8%AD%A6%E5%91%8A%E4%BF%A1%E6%81%AF/" title="Git的换行符警告信息"><img src="/img/xile_irron.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="Git的换行符警告信息"/></a><div class="content"><a class="title" href="/2026/03/01/Git%E7%9A%84%E6%8D%A2%E8%A1%8C%E7%AC%A6%E8%AD%A6%E5%91%8A%E4%BF%A1%E6%81%AF/" title="Git的换行符警告信息">Git的换行符警告信息</a><time datetime="2026-03-01T10:58:09.000Z" title="发表于 2026-03-01 18:58:09">2026-03-01</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By anemperorduck</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
