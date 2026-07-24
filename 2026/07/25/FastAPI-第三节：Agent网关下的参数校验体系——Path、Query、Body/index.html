@@ -1,0 +1,227 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1.0,viewport-fit=cover"><title>FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body | ANEMP BLOG</title><meta name="author" content="anemperorduck"><meta name="copyright" content="anemperorduck"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body打造一个稳定的 AI Agent 服务，很多人把精力花在模型选型、Prompt 调优和复杂的图编排上，却忽略了一个最基础的环节：入口处的参数校验。当一个大语言模型 API 调用动辄消耗数秒时间和数千 Token 成本时，任由非法请求打到下游 Agent 节点，无异于将钱扔进碎纸机。 这一节我们聚焦 FastAP">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body">
+<meta property="og:url" content="https://anemperorduck.github.io/2026/07/25/FastAPI-%E7%AC%AC%E4%B8%89%E8%8A%82%EF%BC%9AAgent%E7%BD%91%E5%85%B3%E4%B8%8B%E7%9A%84%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%BD%93%E7%B3%BB%E2%80%94%E2%80%94Path%E3%80%81Query%E3%80%81Body/index.html">
+<meta property="og:site_name" content="ANEMP BLOG">
+<meta property="og:description" content="FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body打造一个稳定的 AI Agent 服务，很多人把精力花在模型选型、Prompt 调优和复杂的图编排上，却忽略了一个最基础的环节：入口处的参数校验。当一个大语言模型 API 调用动辄消耗数秒时间和数千 Token 成本时，任由非法请求打到下游 Agent 节点，无异于将钱扔进碎纸机。 这一节我们聚焦 FastAP">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://anemperorduck.github.io/img/kiss.jpg">
+<meta property="article:published_time" content="2026-07-24T16:26:37.000Z">
+<meta property="article:modified_time" content="2026-07-24T16:30:17.518Z">
+<meta property="article:author" content="anemperorduck">
+<meta property="article:tag" content="FastAPI">
+<meta property="article:tag" content="Pydantic">
+<meta property="article:tag" content="Python web">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://anemperorduck.github.io/img/kiss.jpg"><script type="application/ld+json">{
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": "FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body",
+  "url": "https://anemperorduck.github.io/2026/07/25/FastAPI-%E7%AC%AC%E4%B8%89%E8%8A%82%EF%BC%9AAgent%E7%BD%91%E5%85%B3%E4%B8%8B%E7%9A%84%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%BD%93%E7%B3%BB%E2%80%94%E2%80%94Path%E3%80%81Query%E3%80%81Body/",
+  "image": "https://anemperorduck.github.io/img/kiss.jpg",
+  "datePublished": "2026-07-24T16:26:37.000Z",
+  "dateModified": "2026-07-24T16:30:17.518Z",
+  "author": [
+    {
+      "@type": "Person",
+      "name": "anemperorduck",
+      "url": "https://anemperorduck.github.io"
+    }
+  ]
+}</script><link rel="shortcut icon" href="/img/favicon.png"><link rel="canonical" href="https://anemperorduck.github.io/2026/07/25/FastAPI-%E7%AC%AC%E4%B8%89%E8%8A%82%EF%BC%9AAgent%E7%BD%91%E5%85%B3%E4%B8%8B%E7%9A%84%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%BD%93%E7%B3%BB%E2%80%94%E2%80%94Path%E3%80%81Query%E3%80%81Body/index.html"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css?v=5.5.3"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.1.0/css/all.min.css"><script>
+    (() => {
+      
+    const saveToLocal = {
+      set: (key, value, ttl) => {
+        if (!ttl) return
+        const expiry = Date.now() + ttl * 86400000
+        localStorage.setItem(key, JSON.stringify({ value, expiry }))
+      },
+      get: key => {
+        const itemStr = localStorage.getItem(key)
+        if (!itemStr) return undefined
+        const { value, expiry } = JSON.parse(itemStr)
+        if (Date.now() > expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return value
+      }
+    }
+
+    window.btf = {
+      saveToLocal,
+      getScript: (url, attr = {}) => new Promise((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = url
+        script.async = true
+        Object.entries(attr).forEach(([key, val]) => script.setAttribute(key, val))
+        script.onload = script.onreadystatechange = () => {
+          if (!script.readyState || /loaded|complete/.test(script.readyState)) resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      }),
+      getCSS: (url, id) => new Promise((resolve, reject) => {
+        const link = document.createElement('link')
+        link.rel = 'stylesheet'
+        link.href = url
+        if (id) link.id = id
+        link.onload = link.onreadystatechange = () => {
+          if (!link.readyState || /loaded|complete/.test(link.readyState)) resolve()
+        }
+        link.onerror = reject
+        document.head.appendChild(link)
+      }),
+      addGlobalFn: (key, fn, name = false, parent = window) => {
+        if (!false && key.startsWith('pjax')) return
+        const globalFn = parent.globalFn || {}
+        globalFn[key] = globalFn[key] || {}
+        globalFn[key][name || Object.keys(globalFn[key]).length] = fn
+        parent.globalFn = globalFn
+      }
+    }
+  
+      
+      const activateDarkMode = () => {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      const activateLightMode = () => {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+
+      btf.activateDarkMode = activateDarkMode
+      btf.activateLightMode = activateLightMode
+
+      const theme = saveToLocal.get('theme')
+    
+          theme === 'dark' ? activateDarkMode() : theme === 'light' ? activateLightMode() : null
+        
+      
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        document.documentElement.classList.toggle('hide-aside', asideStatus === 'hide')
+      }
+    
+      
+    const detectApple = () => {
+      if (/iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)) {
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+  
+    })()
+  </script><script>const GLOBAL_CONFIG = {
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  highlight: {"plugin":"highlight.js","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":250,"highlightFullpage":false,"highlightMacStyle":true},
+  copy: {
+    success: '复制成功',
+    error: '复制失败',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  dateSuffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'null',
+  Snackbar: undefined,
+  infinitegrid: {
+    js: 'https://cdn.jsdelivr.net/npm/@egjs/infinitegrid@4.12.0/dist/infinitegrid.min.js',
+    buttonText: '加载更多'
+  },
+  isPhotoFigcaption: false,
+  islazyloadPlugin: false,
+  isAnchor: false,
+  percent: {
+    toc: true,
+    rightside: false,
+  },
+  autoDarkmode: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body',
+  isHighlightShrink: false,
+  isToc: true,
+  pageType: 'post'
+}</script><meta name="generator" content="Hexo 8.1.1"></head><body><div class="bg-animation" id="web_bg" style="background-color: #f8f9fa;"></div><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img text-center"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data text-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">15</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">19</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> List</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></li><li><a class="site-page child" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></li></ul></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url(/img/kiss.jpg);"><nav id="nav"><span id="blog-info"><a class="nav-site-title" href="/"><span class="site-name">ANEMP BLOG</span></a><a class="nav-page-title" href="/"><span class="site-name">FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body</span><span class="site-name"><i class="fa-solid fa-circle-arrow-left"></i><span>  返回首页</span></span></a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> Home</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> Archives</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> Categories</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> Tags</span></a></div><div class="menus_item"><span class="site-page group"><i class="fa-fw fas fa-list"></i><span> List</span><i class="fas fa-chevron-down"></i></span><ul class="menus_item_child"><li><a class="site-page child" href="/link/"><i class="fa-fw fas fa-link"></i><span> Link</span></a></li><li><a class="site-page child" href="/about/"><i class="fa-fw fas fa-heart"></i><span> About</span></a></li></ul></div></div><div id="toggle-menu"><span class="site-page"><i class="fas fa-bars fa-fw"></i></span></div></div></nav><div id="post-info"><h1 class="post-title">FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2026-07-24T16:26:37.000Z" title="发表于 2026-07-25 00:26:37">2026-07-25</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2026-07-24T16:30:17.518Z" title="更新于 2026-07-25 00:30:17">2026-07-25</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/%E4%B8%96%E7%95%8C%E6%A8%A1%E5%BC%8F/">世界模式</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title=""><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">浏览量:</span><span id="busuanzi_value_page_pv"><i class="fa-solid fa-spinner fa-spin"></i></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="container post-content" id="article-container"><h1 id="FastAPI-第三节：Agent网关下的参数校验体系——Path、Query、Body"><a href="#FastAPI-第三节：Agent网关下的参数校验体系——Path、Query、Body" class="headerlink" title="FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body"></a>FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body</h1><p>打造一个稳定的 AI Agent 服务，很多人把精力花在模型选型、Prompt 调优和复杂的图编排上，却忽略了一个最基础的环节：<strong>入口处的参数校验</strong>。当一个大语言模型 API 调用动辄消耗数秒时间和数千 Token 成本时，任由非法请求打到下游 Agent 节点，无异于将钱扔进碎纸机。</p>
+<p>这一节我们聚焦 FastAPI 的核心声明系统——<code>Path</code>、<code>Query</code>、<code>Body</code> 与 <code>Field</code>，并将它们放置在企业级 AI 网关的背景下重新理解。你会看到，严格的入参校验不仅是防御手段，更是一种成本控制策略。</p>
+<hr>
+<h2 id="参数校验为何重要？"><a href="#参数校验为何重要？" class="headerlink" title="参数校验为何重要？"></a>参数校验为何重要？</h2><p>传统的 Web 应用中，参数校验主要是为了安全——防止 SQL 注入、XSS 和格式异常。但在 LLM 驱动的 Agent 架构里，校验失败会直接转化为<strong>高昂的 Token 浪费</strong>和<strong>状态机崩溃</strong>。</p>
+<p>一个典型的 LangGraph 应用，接收用户请求后会经过条件路由、工具调用、LLM 推理等多个节点。这些节点对初始状态的数据结构高度敏感。如果某个必传字段缺失、<code>temperature</code> 超出合法范围、或者 <code>session_id</code> 的格式不符合 UUID 标准，但在路由入口处没有被拦截，那么：</p>
+<ul>
+<li>下游 LangChain 链路可能在中途抛出不可预料的 Pydantic 校验错误，导致整个请求失败，但前面几个节点的 LLM 调用已经消耗了 Token。</li>
+<li>LangGraph 的 Checkpointer 依赖严格的 <code>thread_id</code> 做状态持久化，格式错误会导致历史对话无法恢复，引发“丢失记忆”的诡异 bug。</li>
+<li>流式输出开启与否、温度值范围、历史上下文截断深度等参数，如果没有预检，会让 Agent 的行为变得不可控。</li>
+</ul>
+<p>FastAPI 作为 API 门禁层，它的类型系统允许我们在函数体执行<strong>之前</strong>完成所有入参校验。拒绝非法请求的成本，几乎为零。</p>
+<hr>
+<h2 id="核心参数声明体系速览"><a href="#核心参数声明体系速览" class="headerlink" title="核心参数声明体系速览"></a>核心参数声明体系速览</h2><p>FastAPI 提供了三套参数声明工具，分别对应 HTTP 协议中的三个请求位点：</p>
+<h3 id="1-Path-——-路径参数：负责资源定位"><a href="#1-Path-——-路径参数：负责资源定位" class="headerlink" title="1. Path —— 路径参数：负责资源定位"></a>1. Path —— 路径参数：负责资源定位</h3><p>路径参数用于标识资源。在 Agent 服务里，<code>agent_id</code> 和 <code>session_id</code> 是最典型的路径参数。通过 <code>Path(...)</code> 可以为它们附加丰富约束：</p>
+<ul>
+<li><code>min_length</code> &#x2F; <code>max_length</code>：限制字符串长度，防止过长的 ID 攻击。</li>
+<li><code>pattern</code>：使用正则表达式限定字符集，比如 <code>^[a-zA-Z0-9_-]+$</code> 只允许字母、数字、下划线和连字符。</li>
+<li>类型自动转换：将 <code>str</code> 声明为 <code>UUID</code> 后，FastAPI 会在路由层直接将字符串转换成 <code>uuid.UUID</code> 对象。如果字符串不符合 RFC 4122 格式，客户端会立即收到 422 响应，根本不会进入业务逻辑。</li>
+</ul>
+<p>这种“先校验后执行”的机制，让 LangGraph 可以安全地使用 <code>thread_id = str(session_id)</code>，而无需在图中再做格式判断。</p>
+<h3 id="2-Query-——-查询参数：控制行为策略"><a href="#2-Query-——-查询参数：控制行为策略" class="headerlink" title="2. Query —— 查询参数：控制行为策略"></a>2. Query —— 查询参数：控制行为策略</h3><p>查询参数通常用来调整请求的处理方式，而不是传递核心数据。在 AI 场景下，Query 参数的精妙运用能极大提升接口灵活性：</p>
+<ul>
+<li><code>temperature</code>：控制 LLM 输出的随机性，取值 0.0~2.0。通过 <code>ge=0.0, le=2.0</code> 限定范围，任何越界调用都会被直接拒绝。</li>
+<li><code>max_tokens</code>：限制单次生成的最大 Token 数，避免意外产生巨额费用。</li>
+<li><code>verbose</code>：布尔值，控制是否输出调试日志，方便排查问题又不影响生产性能。</li>
+<li><code>stream</code>：是否启用流式响应。这个参数一旦写错，客户端可能会错误地解析 JSON 为 SSE 流，严重时导致前端崩溃。</li>
+</ul>
+<p>声明 Query 参数时，<code>default</code>、<code>ge</code>、<code>le</code>、<code>gt</code>、<code>lt</code> 等元数据既是校验规则，也是自动生成的 OpenAPI 文档。这对于团队协作和 SDK 生成非常有价值。</p>
+<h3 id="3-Body-与-Field-——-请求体字段：承载复杂载荷"><a href="#3-Body-与-Field-——-请求体字段：承载复杂载荷" class="headerlink" title="3. Body 与 Field —— 请求体字段：承载复杂载荷"></a>3. Body 与 Field —— 请求体字段：承载复杂载荷</h3><p>现代 AI 应用早已不是简单的“一问一答”。多轮对话历史、附件 URL、工具调用元数据，都需要通过 JSON Body 传递。FastAPI 借助 Pydantic Model 和 <code>Field</code> 函数，把散乱的 JSON 数据转化为强类型对象：</p>
+<ul>
+<li><code>min_length</code> &#x2F; <code>max_length</code>：对用户 Prompt 做长度控制，防止攻击者提交一篇《战争与和平》的请求体，造成 LLM 上下文溢出或 DoS 攻击。</li>
+<li><code>pattern</code>：对字符串字段做正则约束，例如消息角色 <code>role</code> 只能取 <code>user</code>、<code>system</code> 或 <code>assistant</code>。</li>
+<li><code>default_factory</code> 与 <code>max_length</code>：为历史消息列表设置上限，避免客户端塞入数百条历史记录导致处理超时。</li>
+<li><code>examples</code>：提供示例值，直接展示在 Swagger UI 中，降低 API 消费方的使用门槛。</li>
+</ul>
+<p>所有这些规则，在 Pydantic v2 的 Rust 内核中以极高性能完成校验。一旦 JSON Body 不满足要求，422 错误会带着明细的失败原因返回，且<strong>没有一行 Python 业务代码被执行</strong>。</p>
+<hr>
+<h2 id="一个完整的-Agent-对话接口"><a href="#一个完整的-Agent-对话接口" class="headerlink" title="一个完整的 Agent 对话接口"></a>一个完整的 Agent 对话接口</h2><p>下面我们通过一个代码片段，展示 Path、Query、Body 的组合用法。代码省略了部分细节，但完整保留了参数声明的精华。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> fastapi <span class="keyword">import</span> FastAPI, Path, Query, Body</span><br><span class="line"><span class="keyword">from</span> pydantic <span class="keyword">import</span> BaseModel, Field</span><br><span class="line"><span class="keyword">from</span> uuid <span class="keyword">import</span> UUID</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">MessagePayload</span>(<span class="title class_ inherited__">BaseModel</span>):</span><br><span class="line">    role: <span class="built_in">str</span> = Field(..., pattern=<span class="string">&quot;^(user|system|assistant)$&quot;</span>)</span><br><span class="line">    content: <span class="built_in">str</span> = Field(..., min_length=<span class="number">1</span>, max_length=<span class="number">4096</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">AgentChatRequest</span>(<span class="title class_ inherited__">BaseModel</span>):</span><br><span class="line">    prompt: <span class="built_in">str</span> = Field(..., min_length=<span class="number">1</span>, max_length=<span class="number">2000</span>)</span><br><span class="line">    history: <span class="built_in">list</span>[MessagePayload] = Field(default_factory=<span class="built_in">list</span>, max_length=<span class="number">20</span>)</span><br><span class="line"></span><br><span class="line">app = FastAPI()</span><br><span class="line"></span><br><span class="line"><span class="meta">@app.post(<span class="params"><span class="string">&quot;/api/v1/agents/&#123;agent_id&#125;/sessions/&#123;session_id&#125;/chat&quot;</span></span>)</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">chat_with_agent</span>(<span class="params"></span></span><br><span class="line"><span class="params">    agent_id: <span class="built_in">str</span> = Path(<span class="params">..., min_length=<span class="number">3</span>, max_length=<span class="number">32</span>,</span></span></span><br><span class="line"><span class="params"><span class="params">                         pattern=<span class="string">&quot;^[a-zA-Z0-9_-]+$&quot;</span></span>),</span></span><br><span class="line"><span class="params">    session_id: UUID = Path(<span class="params">...</span>),</span></span><br><span class="line"><span class="params">    temperature: <span class="built_in">float</span> = Query(<span class="params">default=<span class="number">0.7</span>, ge=<span class="number">0.0</span>, le=<span class="number">2.0</span></span>),</span></span><br><span class="line"><span class="params">    max_tokens: <span class="built_in">int</span> = Query(<span class="params">default=<span class="number">1024</span>, ge=<span class="number">64</span>, le=<span class="number">4096</span></span>),</span></span><br><span class="line"><span class="params">    request_body: AgentChatRequest = Body(<span class="params">...</span>)</span></span><br><span class="line"><span class="params"></span>):</span><br><span class="line">    <span class="comment"># 到这一步时，所有参数已通过严格校验</span></span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+
+<p>这个函数签名本身就是一份活文档。任何一个新加入团队的工程师，都能直接从参数声明中看懂这个接口的能力边界。<code>agent_id</code> 只能包含哪些字符、<code>session_id</code> 的格式必须是 UUID、<code>temperature</code> 的有效范围——这些信息不需要翻阅外部文档，也不需要去翻业务代码里的 <code>if</code> 判断。</p>
+<p>当客户端发送一个错误请求时，FastAPI 会自动生成类似下面的 422 错误响应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;detail&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;uuid_parsing&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;loc&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;path&quot;</span><span class="punctuation">,</span> <span class="string">&quot;session_id&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;msg&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Input should be a valid UUID&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;input&quot;</span><span class="punctuation">:</span> <span class="string">&quot;invalid-uuid&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;less_than_equal&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;loc&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;query&quot;</span><span class="punctuation">,</span> <span class="string">&quot;temperature&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;msg&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Input should be less than or equal to 2&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;input&quot;</span><span class="punctuation">:</span> <span class="number">3.5</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>多个字段的校验错误会一次全部返回，而不是修了一个再报下一个。这对前端开发和接口调试极其友好。</p>
+<hr>
+<h2 id="从校验到状态：映射到-LangGraph"><a href="#从校验到状态：映射到-LangGraph" class="headerlink" title="从校验到状态：映射到 LangGraph"></a>从校验到状态：映射到 LangGraph</h2><p>校验通过后的参数，会在路由函数内被组装为 LangGraph 的初始状态字典。以刚才的代码为例：</p>
+<ul>
+<li><code>session_id</code>（UUID）转为字符串后，作为 <code>thread_id</code> 传入 <code>config</code>，用于 Checkpointer 的状态恢复。</li>
+<li><code>request_body.prompt</code> 和 <code>history</code>，成为图状态中的 <code>current_prompt</code> 和 <code>chat_history</code>。</li>
+<li><code>temperature</code> 和 <code>max_tokens</code> 可以作为运行时配置传入 LLM 节点，覆盖默认值。</li>
+</ul>
+<p>整个流程形成了清晰的分层：<strong>FastAPI 负责“数据是否可用”，LangGraph 负责“数据如何流转”</strong>。这种解耦让每一层都可以独立测试和优化。</p>
+<hr>
+<h2 id="生产环境中的几个关键细节"><a href="#生产环境中的几个关键细节" class="headerlink" title="生产环境中的几个关键细节"></a>生产环境中的几个关键细节</h2><h3 id="1-资源生命周期管理不要偷懒"><a href="#1-资源生命周期管理不要偷懒" class="headerlink" title="1. 资源生命周期管理不要偷懒"></a>1. 资源生命周期管理不要偷懒</h3><p>在路由函数内部创建 LLM 客户端实例，是最常见的反模式。正确做法是利用 FastAPI 的 <code>lifespan</code> 上下文管理器，在服务启动时初始化全局资源（LLM 连接池、数据库连接、Checkpointer），并在关闭时优雅释放。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> contextlib <span class="keyword">import</span> asynccontextmanager</span><br><span class="line"></span><br><span class="line"><span class="meta">@asynccontextmanager</span></span><br><span class="line"><span class="keyword">async</span> <span class="keyword">def</span> <span class="title function_">lifespan</span>(<span class="params">app: FastAPI</span>):</span><br><span class="line">    <span class="comment"># 启动：初始化资源</span></span><br><span class="line">    app.state.llm_client = init_llm_client()</span><br><span class="line">    <span class="keyword">yield</span></span><br><span class="line">    <span class="comment"># 关闭：清理资源</span></span><br><span class="line">    <span class="keyword">await</span> app.state.llm_client.close()</span><br></pre></td></tr></table></figure>
+
+<p>这样每个请求都可以直接使用 <code>app.state</code> 中的长连接实例，避免反复建连带来的延迟和内存泄漏。</p>
+<h3 id="2-异步路由中使用异步-I-O"><a href="#2-异步路由中使用异步-I-O" class="headerlink" title="2. 异步路由中使用异步 I&#x2F;O"></a>2. 异步路由中使用异步 I&#x2F;O</h3><p>路由定义为 <code>async def</code> 后，内部所有可能产生等待的操作都要用 <code>await</code>。如果调用了同步的 <code>requests</code> 库或同步 LLM SDK，事件循环会被阻塞，导致整个进程吞吐量骤降。必要时使用 <code>run_in_threadpool</code> 将同步调用隔离到线程池。</p>
+<h3 id="3-告别-v1-习惯"><a href="#3-告别-v1-习惯" class="headerlink" title="3. 告别 v1 习惯"></a>3. 告别 v1 习惯</h3><p>FastAPI 当前与 Pydantic v2 深度集成。注意 <code>Field</code> 中的正则校验已从 <code>regex</code> 改为 <code>pattern</code>，示例值从 <code>schema_extra</code> 改为 <code>json_schema_extra</code> 或直接使用 <code>examples</code>。继续沿用 v1 写法虽然有时仍被兼容，但会在迁移时埋下隐患。</p>
+<h3 id="4-Prompt-注入的基础防护"><a href="#4-Prompt-注入的基础防护" class="headerlink" title="4. Prompt 注入的基础防护"></a>4. Prompt 注入的基础防护</h3><p>不要在 Gateway 层对用户 Prompt 做天真拼接。<code>max_length</code> 约束、正则过滤控制字符、以及针对特定关键词的黑名单校验，都可以通过 Pydantic 的自定义 validator 实现。这是成本最低的 Prompt 注入第一道防线。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>FastAPI 的参数声明系统远不止是一种语法糖。把它放在 AI Agent 网关的入口处，它就变成了成本控制、稳定性保障和团队协作效率的杠杆。<code>Path</code> 让资源定位变得坚不可摧，<code>Query</code> 让行为策略可配可控，<code>Body</code> 与 <code>Field</code> 则把复杂的载荷约束写在了阳光之下。拒绝一个非法请求，有时比处理它更有价值——尤其是在每一次拒绝背后，都可能是一次 LLM 推理成本的无声节约。</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta"><i class="fas fa-circle-user fa-fw"></i>文章作者: </span><span class="post-copyright-info"><a href="https://anemperorduck.github.io">anemperorduck</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta"><i class="fas fa-square-arrow-up-right fa-fw"></i>文章链接: </span><span class="post-copyright-info"><a href="https://anemperorduck.github.io/2026/07/25/FastAPI-%E7%AC%AC%E4%B8%89%E8%8A%82%EF%BC%9AAgent%E7%BD%91%E5%85%B3%E4%B8%8B%E7%9A%84%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%BD%93%E7%B3%BB%E2%80%94%E2%80%94Path%E3%80%81Query%E3%80%81Body/">https://anemperorduck.github.io/2026/07/25/FastAPI-%E7%AC%AC%E4%B8%89%E8%8A%82%EF%BC%9AAgent%E7%BD%91%E5%85%B3%E4%B8%8B%E7%9A%84%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%BD%93%E7%B3%BB%E2%80%94%E2%80%94Path%E3%80%81Query%E3%80%81Body/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta"><i class="fas fa-circle-exclamation fa-fw"></i>版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来源 <a href="https://anemperorduck.github.io" target="_blank">ANEMP BLOG</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/FastAPI/">FastAPI</a><a class="post-meta__tags" href="/tags/Python-web/">Python web</a><a class="post-meta__tags" href="/tags/Pydantic/">Pydantic</a></div><div class="post-share"><div class="social-share" data-image="/img/kiss.jpg" data-sites="facebook,x,wechat,weibo,qq"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/butterfly-extsrc@1.1.6/sharejs/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><a class="pagination-related full-width" href="/2026/07/20/FastAPI-%E7%AC%AC%E4%BA%8C%E8%8A%82%EF%BC%9A%E4%BB%8E%E6%A0%B8%E5%BF%83%E8%BF%90%E8%A1%8C%E6%9C%BA%E5%88%B6%E5%88%B0%E7%94%9F%E4%BA%A7%E7%BA%A7%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5%E5%A5%A0%E5%9F%BA/" title="FastAPI 第二节：从核心运行机制到生产级工程实践奠基"><img class="cover" src="/img/woli.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="info text-right"><div class="info-1"><div class="info-item-1">下一篇</div><div class="info-item-2">FastAPI 第二节：从核心运行机制到生产级工程实践奠基</div></div><div class="info-2"><div class="info-item-1">FastAPI 异步架构进阶：从核心运行机制到生产级工程实践在构建现代高并发 Web 服务时，FastAPI 凭借其原生异步支持与极简的工程体验，已成为 Python 后端领域的核心框架。本文将基于 FastAPI 的核心运行机制，深度剖析底层异步原理、生命周期管理、日志架构以及生产环境的避坑指南，为您呈现一份系统且严谨的工程实践指南。 一、 底层基石：协程与非阻塞 I&#x2F;O 的深度辨析在异步编程的上下文中，“协程（Coroutine）”与“非阻塞 I&#x2F;O（Non-blocking I&#x2F;O）”常被初学者混淆。事实上，它们并非对立的开发方式，而是属于不同层面的概念，二者协同构成了 FastAPI 高性能的底座。    维度 协程 (Coroutine) 非阻塞 I&#x2F;O (Non-blocking I&#x2F;O)    所处层级 应用层 &#x2F; 编程语言语法 操作系统层 &#x2F; 系统调用   核心职责 解决如何用单线程编写结构清晰、无回调地狱的并发代码。 解决硬件或网络读写时，CPU 被迫闲置等待的问题。   关键字 async,...</div></div></div></a></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><a class="pagination-related" href="/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" title="FastAPI 第一节：从一个注册接口 Demo 看到网络通信与后端架构设计"><img class="cover" src="/img/douleus.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-19</div><div class="info-item-2">FastAPI 第一节：从一个注册接口 Demo 看到网络通信与后端架构设计</div></div><div class="info-2"><div class="info-item-1">FastAPI 第一课：从一个注册接口 Demo 看到网络通信与后端架构设计 前言今天是我系统学习 FastAPI 的第一天。为了建立直观的理解，我没有去死记硬背枯燥的 API 文档，而是以最常见的“用户注册接口 (Demo)”为主线，从前端发起网络请求，一路追踪到后端的数据校验、日志记录与响应返回。本文将我的学习笔记进行了系统性重构，希望能帮助同样在入门 FastAPI 的你，建立起从“网络通信”到“后端架构设计”的全局观。   一、 网络通信篇：你的请求是如何到达 FastAPI 的？在编写后端代码之前，我们必须先理解客户端与服务器是如何“对话”的。网络通信的本质，非常类似于寄送快递。 1. 万物皆可“寄快递”我们以一个向本地 FastAPI 服务发送注册请求的例子，来拆解抽象的网络概念：    网络概念 快递类比 具体到我们的 Demo 深度解析    IP 地址 收件地址（某栋大楼） 127.0.0.1 特殊的本地回环地址，代表“我自己的这台电脑”。发送和接收都在本机。   端口 (Port) 收件人房间号 8080 一台电脑运行着很多服务。8080 就是 FastAPI...</div></div></div></a><a class="pagination-related" href="/2026/07/20/FastAPI-%E7%AC%AC%E4%BA%8C%E8%8A%82%EF%BC%9A%E4%BB%8E%E6%A0%B8%E5%BF%83%E8%BF%90%E8%A1%8C%E6%9C%BA%E5%88%B6%E5%88%B0%E7%94%9F%E4%BA%A7%E7%BA%A7%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5%E5%A5%A0%E5%9F%BA/" title="FastAPI 第二节：从核心运行机制到生产级工程实践奠基"><img class="cover" src="/img/woli.jpg" alt="cover"><div class="info text-center"><div class="info-1"><div class="info-item-1"><i class="far fa-calendar-alt fa-fw"></i> 2026-07-20</div><div class="info-item-2">FastAPI 第二节：从核心运行机制到生产级工程实践奠基</div></div><div class="info-2"><div class="info-item-1">FastAPI 异步架构进阶：从核心运行机制到生产级工程实践在构建现代高并发 Web 服务时，FastAPI 凭借其原生异步支持与极简的工程体验，已成为 Python 后端领域的核心框架。本文将基于 FastAPI 的核心运行机制，深度剖析底层异步原理、生命周期管理、日志架构以及生产环境的避坑指南，为您呈现一份系统且严谨的工程实践指南。 一、 底层基石：协程与非阻塞 I&#x2F;O 的深度辨析在异步编程的上下文中，“协程（Coroutine）”与“非阻塞 I&#x2F;O（Non-blocking I&#x2F;O）”常被初学者混淆。事实上，它们并非对立的开发方式，而是属于不同层面的概念，二者协同构成了 FastAPI 高性能的底座。    维度 协程 (Coroutine) 非阻塞 I&#x2F;O (Non-blocking I&#x2F;O)    所处层级 应用层 &#x2F; 编程语言语法 操作系统层 &#x2F; 系统调用   核心职责 解决如何用单线程编写结构清晰、无回调地狱的并发代码。 解决硬件或网络读写时，CPU 被迫闲置等待的问题。   关键字 async,...</div></div></div></a></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info text-center"><div class="avatar-img"><img src="/img/avatar.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info-name">anemperorduck</div><div class="author-info-description">about computer technology; about philosophy; About literature</div><div class="site-data"><a href="/archives/"><div class="headline">文章</div><div class="length-num">15</div></a><a href="/tags/"><div class="headline">标签</div><div class="length-num">19</div></a><a href="/categories/"><div class="headline">分类</div><div class="length-num">2</div></a></div><a id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/anemperorduck"><i class="fab fa-github"></i><span>Follow Me</span></a><div class="card-info-social-icons"><a class="social-icon" href="https://github.com/anemperorduck" target="_blank" title="Github"><i class="fab fa-github" style="color: #24292e;"></i></a><a class="social-icon" href="mailto:anemperorduck@gmail.com" target="_blank" title="Email"><i class="fas fa-envelope" style="color: #4a7dbe;"></i></a></div></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn fa-shake"></i><span>公告</span></div><div class="announcement_content">This is my Blog</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span><span class="toc-percentage"></span></div><div class="toc-content is-expand"><ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#FastAPI-%E7%AC%AC%E4%B8%89%E8%8A%82%EF%BC%9AAgent%E7%BD%91%E5%85%B3%E4%B8%8B%E7%9A%84%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%BD%93%E7%B3%BB%E2%80%94%E2%80%94Path%E3%80%81Query%E3%80%81Body"><span class="toc-text">FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%B8%BA%E4%BD%95%E9%87%8D%E8%A6%81%EF%BC%9F"><span class="toc-text">参数校验为何重要？</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%A0%B8%E5%BF%83%E5%8F%82%E6%95%B0%E5%A3%B0%E6%98%8E%E4%BD%93%E7%B3%BB%E9%80%9F%E8%A7%88"><span class="toc-text">核心参数声明体系速览</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-Path-%E2%80%94%E2%80%94-%E8%B7%AF%E5%BE%84%E5%8F%82%E6%95%B0%EF%BC%9A%E8%B4%9F%E8%B4%A3%E8%B5%84%E6%BA%90%E5%AE%9A%E4%BD%8D"><span class="toc-text">1. Path —— 路径参数：负责资源定位</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-Query-%E2%80%94%E2%80%94-%E6%9F%A5%E8%AF%A2%E5%8F%82%E6%95%B0%EF%BC%9A%E6%8E%A7%E5%88%B6%E8%A1%8C%E4%B8%BA%E7%AD%96%E7%95%A5"><span class="toc-text">2. Query —— 查询参数：控制行为策略</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-Body-%E4%B8%8E-Field-%E2%80%94%E2%80%94-%E8%AF%B7%E6%B1%82%E4%BD%93%E5%AD%97%E6%AE%B5%EF%BC%9A%E6%89%BF%E8%BD%BD%E5%A4%8D%E6%9D%82%E8%BD%BD%E8%8D%B7"><span class="toc-text">3. Body 与 Field —— 请求体字段：承载复杂载荷</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%80%E4%B8%AA%E5%AE%8C%E6%95%B4%E7%9A%84-Agent-%E5%AF%B9%E8%AF%9D%E6%8E%A5%E5%8F%A3"><span class="toc-text">一个完整的 Agent 对话接口</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%8E%E6%A0%A1%E9%AA%8C%E5%88%B0%E7%8A%B6%E6%80%81%EF%BC%9A%E6%98%A0%E5%B0%84%E5%88%B0-LangGraph"><span class="toc-text">从校验到状态：映射到 LangGraph</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%94%9F%E4%BA%A7%E7%8E%AF%E5%A2%83%E4%B8%AD%E7%9A%84%E5%87%A0%E4%B8%AA%E5%85%B3%E9%94%AE%E7%BB%86%E8%8A%82"><span class="toc-text">生产环境中的几个关键细节</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#1-%E8%B5%84%E6%BA%90%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E7%AE%A1%E7%90%86%E4%B8%8D%E8%A6%81%E5%81%B7%E6%87%92"><span class="toc-text">1. 资源生命周期管理不要偷懒</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#2-%E5%BC%82%E6%AD%A5%E8%B7%AF%E7%94%B1%E4%B8%AD%E4%BD%BF%E7%94%A8%E5%BC%82%E6%AD%A5-I-O"><span class="toc-text">2. 异步路由中使用异步 I&#x2F;O</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#3-%E5%91%8A%E5%88%AB-v1-%E4%B9%A0%E6%83%AF"><span class="toc-text">3. 告别 v1 习惯</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#4-Prompt-%E6%B3%A8%E5%85%A5%E7%9A%84%E5%9F%BA%E7%A1%80%E9%98%B2%E6%8A%A4"><span class="toc-text">4. Prompt 注入的基础防护</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol></li></ol></div></div><div class="card-widget card-recent-post"><div class="item-headline"><i class="fas fa-history"></i><span>最新文章</span></div><div class="aside-list"><div class="aside-list-item"><a class="thumbnail" href="/2026/07/25/FastAPI-%E7%AC%AC%E4%B8%89%E8%8A%82%EF%BC%9AAgent%E7%BD%91%E5%85%B3%E4%B8%8B%E7%9A%84%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%BD%93%E7%B3%BB%E2%80%94%E2%80%94Path%E3%80%81Query%E3%80%81Body/" title="FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body"><img src="/img/kiss.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body"/></a><div class="content"><a class="title" href="/2026/07/25/FastAPI-%E7%AC%AC%E4%B8%89%E8%8A%82%EF%BC%9AAgent%E7%BD%91%E5%85%B3%E4%B8%8B%E7%9A%84%E5%8F%82%E6%95%B0%E6%A0%A1%E9%AA%8C%E4%BD%93%E7%B3%BB%E2%80%94%E2%80%94Path%E3%80%81Query%E3%80%81Body/" title="FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body">FastAPI 第三节：Agent网关下的参数校验体系——Path、Query、Body</a><time datetime="2026-07-24T16:26:37.000Z" title="发表于 2026-07-25 00:26:37">2026-07-25</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/07/20/FastAPI-%E7%AC%AC%E4%BA%8C%E8%8A%82%EF%BC%9A%E4%BB%8E%E6%A0%B8%E5%BF%83%E8%BF%90%E8%A1%8C%E6%9C%BA%E5%88%B6%E5%88%B0%E7%94%9F%E4%BA%A7%E7%BA%A7%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5%E5%A5%A0%E5%9F%BA/" title="FastAPI 第二节：从核心运行机制到生产级工程实践奠基"><img src="/img/woli.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="FastAPI 第二节：从核心运行机制到生产级工程实践奠基"/></a><div class="content"><a class="title" href="/2026/07/20/FastAPI-%E7%AC%AC%E4%BA%8C%E8%8A%82%EF%BC%9A%E4%BB%8E%E6%A0%B8%E5%BF%83%E8%BF%90%E8%A1%8C%E6%9C%BA%E5%88%B6%E5%88%B0%E7%94%9F%E4%BA%A7%E7%BA%A7%E5%B7%A5%E7%A8%8B%E5%AE%9E%E8%B7%B5%E5%A5%A0%E5%9F%BA/" title="FastAPI 第二节：从核心运行机制到生产级工程实践奠基">FastAPI 第二节：从核心运行机制到生产级工程实践奠基</a><time datetime="2026-07-20T04:11:28.000Z" title="发表于 2026-07-20 12:11:28">2026-07-20</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" title="FastAPI 第一节：从一个注册接口 Demo 看到网络通信与后端架构设计"><img src="/img/douleus.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="FastAPI 第一节：从一个注册接口 Demo 看到网络通信与后端架构设计"/></a><div class="content"><a class="title" href="/2026/07/19/FastAPI-%E5%85%A5%E9%97%A8%E7%AC%AC%E4%B8%80%E8%AF%BE%EF%BC%9A%E4%BB%8E%E4%B8%80%E4%B8%AA%E6%B3%A8%E5%86%8C%E6%8E%A5%E5%8F%A3-Demo-%E7%9C%8B%E5%88%B0%E7%BD%91%E7%BB%9C%E9%80%9A%E4%BF%A1%E4%B8%8E%E5%90%8E%E7%AB%AF%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/" title="FastAPI 第一节：从一个注册接口 Demo 看到网络通信与后端架构设计">FastAPI 第一节：从一个注册接口 Demo 看到网络通信与后端架构设计</a><time datetime="2026-07-18T17:17:58.000Z" title="发表于 2026-07-19 01:17:58">2026-07-19</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/04/01/%E5%A4%84%E7%90%86VS-Code%E4%B8%ADPylance%E6%97%A0%E6%B3%95%E8%A7%A3%E6%9E%90%E5%AF%BC%E5%85%A5%E7%9A%84%E9%94%99%E8%AF%AF%EF%BC%9A%E4%BB%A5nltk%E4%B8%BA%E4%BE%8B/" title="处理VS-Code中Pylance无法解析导入的错误：以NLTK为例"><img src="/img/xile_colorMan.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="处理VS-Code中Pylance无法解析导入的错误：以NLTK为例"/></a><div class="content"><a class="title" href="/2026/04/01/%E5%A4%84%E7%90%86VS-Code%E4%B8%ADPylance%E6%97%A0%E6%B3%95%E8%A7%A3%E6%9E%90%E5%AF%BC%E5%85%A5%E7%9A%84%E9%94%99%E8%AF%AF%EF%BC%9A%E4%BB%A5nltk%E4%B8%BA%E4%BE%8B/" title="处理VS-Code中Pylance无法解析导入的错误：以NLTK为例">处理VS-Code中Pylance无法解析导入的错误：以NLTK为例</a><time datetime="2026-04-01T04:11:22.000Z" title="发表于 2026-04-01 12:11:22">2026-04-01</time></div></div><div class="aside-list-item"><a class="thumbnail" href="/2026/03/30/NLP%E7%9A%84%E5%9F%BA%E7%A1%80%EF%BC%9ANLTK%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E8%AF%A6%E8%A7%A3%E4%B8%8E%E6%96%87%E6%9C%AC%E9%A2%84%E5%A4%84%E7%90%86/" title="NLP的基础：NLTK核心功能详解与文本预处理"><img src="/img/kiss.jpg" onerror="this.onerror=null;this.src='/img/404.jpg'" alt="NLP的基础：NLTK核心功能详解与文本预处理"/></a><div class="content"><a class="title" href="/2026/03/30/NLP%E7%9A%84%E5%9F%BA%E7%A1%80%EF%BC%9ANLTK%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD%E8%AF%A6%E8%A7%A3%E4%B8%8E%E6%96%87%E6%9C%AC%E9%A2%84%E5%A4%84%E7%90%86/" title="NLP的基础：NLTK核心功能详解与文本预处理">NLP的基础：NLTK核心功能详解与文本预处理</a><time datetime="2026-03-30T09:27:08.000Z" title="发表于 2026-03-30 17:27:08">2026-03-30</time></div></div></div></div></div></div></main><footer id="footer"><div class="footer-other"><div class="footer-copyright"><span class="copyright">&copy;&nbsp;2025 - 2026 By anemperorduck</span><span class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo 8.1.1</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly 5.5.3</a></span></div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="日间和夜间模式切换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside-config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><span class="scroll-percent"></span><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js?v=5.5.3"></script><script src="/js/main.js?v=5.5.3"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
